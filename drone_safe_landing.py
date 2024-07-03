@@ -100,9 +100,9 @@ class SafeLandingDetectionNode(Node):
     #     return True
     def is_safe_for_landing(self, cloud):
     # Parameters
-        min_points = 380  # Minimum number of points in the plane
-        max_height_variation = 285.0  # Maximum allowed height variation in the plane (in meters)
-        flying_altitude = 10.0  # Altitude the drone is flying at (in meters)
+        min_points = 330  # Minimum number of points in the plane
+        max_height_variation = 13.0  # Maximum allowed height variation in the plane (in meters)
+        flying_altitude = 8.0  # Altitude the drone is flying at (in meters)
     
         # Get drone dimensions
         drone_length = 5.0  # Length of the drone (in meters)
@@ -115,10 +115,19 @@ class SafeLandingDetectionNode(Node):
             self.logger.info(f'Plane rejected: insufficient points ({points.shape[0]} < {min_points})')
             return False
 
+
         # Calculate the height variation
-        height_variation = np.max(points[:, 2]) - np.min(points[:, 2])
-        if height_variation > max_height_variation:
-            self.logger.info(f'Plane rejected: height variation too large ({height_variation} > {max_height_variation})')
+        # height_variation = np.max(points[:, 2]) - np.min(points[:, 2])
+        # if height_variation > max_height_variation:
+        #     self.logger.info(f'Plane rejected: height variation too large ({height_variation} > {max_height_variation})')
+        #     return False
+
+        # Calculate the convex hull and its area
+        hull, _ = cloud.compute_convex_hull()
+        plane_area = hull.get_surface_area()
+        self.logger.info(f'Plane  area  ({plane_area})')
+        if plane_area < required_landing_area:
+            self.logger.info(f'Plane rejected: insufficient area ({plane_area} < {required_plane_area})')
             return False
 
         # Ensure the plane is at the correct altitude for landing
@@ -135,12 +144,24 @@ class SafeLandingDetectionNode(Node):
             self.logger.info(f'Plane rejected: not enough space (length: {plane_length}, width: {plane_width})')
             return False
 
+        # Create a reference point cloud at the drone's altitude
+        ref_points = np.array([[x, y, flying_altitude] for x, y in zip(points[:, 0], points[:, 1])])
+        ref_cloud = o3d.geometry.PointCloud()
+        ref_cloud.points = o3d.utility.Vector3dVector(ref_points)
+
+        # Calculate the distance between the reference point cloud and the detected plane
+        dists = np.asarray(ref_cloud.compute_point_cloud_distance(cloud))
+        height_variation = np.max(dists)
+        self.logger.info(f' height variation  ({height_variation} )')
+        if height_variation > max_height_variation:
+            self.logger.info(f'Plane rejected: height variation too large ({height_variation} > {max_height_variation})')
+            return False
         # Proximity to obstacles (can be implemented if obstacle data is available)
         # This requires additional logic to check surrounding obstacles within a certain radius
 
         self.logger.info('Plane accepted as safe landing zone')
         self.logger.info(f'Plane accepted: sufficient points ({points.shape[0]} >= {min_points})')
-        self.logger.info(f'Plane accepted: height variation correct ({height_variation} <= {max_height_variation})')
+        # self.logger.info(f'Plane accepted: height variation correct ({height_variation} <= {max_height_variation})')
         self.logger.info(f'Plane accepted: correct altitude ({plane_altitude} ~ {flying_altitude})')
         self.logger.info(f'Plane accepted: enough space (length: {plane_length}, width: {plane_width})')
         return True

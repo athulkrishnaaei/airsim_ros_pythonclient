@@ -70,11 +70,11 @@ class DroneMission:
         self.client.armDisarm(True)
 
     def execute_mission(self):
-        z = -10  # Negative because AirSim uses NED coordinates (North, East, Down)
+        z = -8  # Negative because AirSim uses NED coordinates (North, East, Down)
         length = 28  # Length of the rectangular region
         width = 28  # Width of the rectangular region
-        speed = 1  # Speed of the drone
-        step_size = 1  # Distance between each row/column in the grid
+        speed = 2  # Speed of the drone
+        step_size = 2  # Distance between each row/column in the grid
 
         waypoints = self.generate_waypoints(length, width, step_size, z)
 
